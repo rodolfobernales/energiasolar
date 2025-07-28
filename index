@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Retorno de Inversión Solar - Chile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease-in-out;
+        }
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        .input-field {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgb(59 130 246 / 0.5);
+        }
+        .result-box {
+            background-color: #eef2ff;
+            border-left: 4px solid #4f46e5;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-top: 1.5rem;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="card max-w-2xl w-full p-6 md:p-8">
+        <div class="text-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Calculadora de Retorno de Inversión Solar</h1>
+            <p class="text-gray-600 mt-2">Estima en cuánto tiempo recuperarás la inversión de tu sistema fotovoltaico en Chile.</p>
+        </div>
+
+        <div class="mt-8 space-y-6">
+            <!-- Input: Gasto Mensual en Electricidad -->
+            <div>
+                <label for="gastoMensual" class="block text-sm font-medium text-gray-700 mb-1">Tu gasto mensual promedio en electricidad (CLP)</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
+                    <input type="number" id="gastoMensual" class="input-field pl-7" placeholder="Ej: 65000" value="65000">
+                </div>
+            </div>
+
+            <!-- Input: Costo Total de la Instalación -->
+            <div>
+                <label for="costoInstalacion" class="block text-sm font-medium text-gray-700 mb-1">Costo total de la instalación (CLP)</label>
+                 <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
+                    <input type="number" id="costoInstalacion" class="input-field pl-7" placeholder="Ej: 3500000" value="3500000">
+                </div>
+            </div>
+
+            <!-- Input: Zona Geográfica -->
+            <div>
+                <label for="zona" class="block text-sm font-medium text-gray-700 mb-1">Zona geográfica de la instalación</label>
+                <select id="zona" class="input-field">
+                    <option value="norte">Norte Grande / Chico (Arica, Iquique, Antofagasta, Copiapó, La Serena)</option>
+                    <option value="centro" selected>Zona Central (Valparaíso, Santiago, Rancagua, Talca)</option>
+                    <option value="sur">Zona Sur / Austral (Concepción, Temuco, Puerto Montt, Coyhaique)</option>
+                </select>
+            </div>
+
+            <!-- Botón de Cálculo -->
+            <div class="text-center">
+                <button id="calcularBtn" class="btn-primary w-full md:w-auto">
+                    Calcular Retorno de Inversión
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección de Resultados -->
+        <div id="resultado" class="mt-6 hidden">
+            <div id="loader" class="loader hidden"></div>
+            <div id="result-content"></div>
+        </div>
+
+        <!-- Supuestos y Notas -->
+        <div class="mt-8 text-xs text-gray-500 border-t pt-4">
+            <h3 class="font-semibold text-sm text-gray-600 mb-2">Supuestos de la Simulación:</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li>Precio promedio de la electricidad (Tarifa BT1): <strong class="font-medium text-gray-700">$185 CLP por kWh</strong>. Este valor puede variar.</li>
+                <li>Factor de generación anual según zona (considera radiación y rendimiento promedio):
+                    <ul class="list-['-_'] list-inside ml-4">
+                        <li><strong>Norte:</strong> 2.200 kWh/kWp al año.</li>
+                        <li><strong>Centro:</strong> 1.750 kWh/kWp al año.</li>
+                        <li><strong>Sur:</strong> 1.300 kWh/kWp al año.</li>
+                    </ul>
+                </li>
+                <li>El cálculo asume que toda la energía generada se autoconsume o se inyecta a la red bajo la Ley de Generación Distribuida (Net-Billing), compensando tu consumo.</li>
+                <li>No se consideran costos de mantención, degradación de los paneles a lo largo del tiempo ni posibles alzas en el precio de la luz (lo que podría acelerar el retorno).</li>
+                <li class="font-bold mt-2">Esta es una estimación. Para un cálculo exacto, consulta con una empresa instaladora certificada.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTES DE CONFIGURACIÓN ---
+        const PRECIO_KWH = 185; // Precio promedio por kWh en CLP
+        const FACTORES_GENERACION = {
+            norte: 2200, // kWh generados por kWp instalado al año
+            centro: 1750,
+            sur: 1300
+        };
+        const COSTO_PROMEDIO_POR_KWP = 1200000; // Costo estimado por kWp instalado en CLP
+
+        // --- ELEMENTOS DEL DOM ---
+        const gastoMensualInput = document.getElementById('gastoMensual');
+        const costoInstalacionInput = document.getElementById('costoInstalacion');
+        const zonaSelect = document.getElementById('zona');
+        const calcularBtn = document.getElementById('calcularBtn');
+        const resultadoDiv = document.getElementById('resultado');
+        const loader = document.getElementById('loader');
+        const resultContent = document.getElementById('result-content');
+
+        // --- FUNCIÓN PRINCIPAL DE CÁLCULO ---
+        function calcularRetorno() {
+            // 1. Mostrar loader y ocultar resultado anterior
+            resultadoDiv.classList.remove('hidden');
+            resultContent.classList.add('hidden');
+            loader.classList.remove('hidden');
+            
+            // Simular una pequeña demora para la animación del loader
+            setTimeout(() => {
+                // 2. Obtener y validar los datos de entrada
+                const gastoMensual = parseFloat(gastoMensualInput.value);
+                const costoInstalacion = parseFloat(costoInstalacionInput.value);
+                const zona = zonaSelect.value;
+
+                if (isNaN(gastoMensual) || gastoMensual <= 0 || isNaN(costoInstalacion) || costoInstalacion <= 0) {
+                    mostrarError("Por favor, ingresa valores válidos y positivos en todos los campos.");
+                    return;
+                }
+
+                // 3. Realizar los cálculos
+                // Estimar el tamaño del sistema en kWp basado en el costo de instalación
+                const tamanoSistemaKWp = costoInstalacion / COSTO_PROMEDIO_POR_KWP;
+
+                // Calcular la generación anual de energía
+                const factorGeneracion = FACTORES_GENERACION[zona];
+                const generacionAnualKWh = tamanoSistemaKWp * factorGeneracion;
+
+                // Calcular el ahorro anual en CLP
+                const ahorroAnual = generacionAnualKWh * PRECIO_KWH;
+
+                // Calcular el período de retorno de la inversión (ROI) en años
+                const retornoEnAnosDecimal = costoInstalacion / ahorroAnual;
+
+                // Convertir el resultado a años y meses
+                const anos = Math.floor(retornoEnAnosDecimal);
+                const meses = Math.round((retornoEnAnosDecimal - anos) * 12);
+                
+                // 4. Mostrar el resultado
+                mostrarResultado(anos, meses, ahorroAnual, generacionAnualKWh, tamanoSistemaKWp);
+
+            }, 500); // 0.5 segundos de demora
+        }
+
+        // --- FUNCIONES AUXILIARES PARA MOSTRAR RESULTADOS ---
+        function mostrarResultado(anos, meses, ahorroAnual, generacionAnual, tamanoSistema) {
+            loader.classList.add('hidden');
+            resultContent.classList.remove('hidden');
+            
+            resultContent.innerHTML = `
+                <div class="result-box">
+                    <h2 class="text-lg font-bold text-indigo-800">Resultado de la Simulación</h2>
+                    <div class="mt-4 text-center">
+                        <p class="text-gray-700">Tiempo estimado para recuperar la inversión:</p>
+                        <p class="text-3xl md:text-4xl font-bold text-indigo-600 my-2">
+                            ${anos} años y ${meses} meses
+                        </p>
+                    </div>
+                    <div class="mt-6 border-t border-indigo-200 pt-4 text-sm space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Ahorro anual estimado:</span>
+                            <span class="font-semibold text-gray-800">$${Math.round(ahorroAnual).toLocaleString('es-CL')}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Energía generada al año:</span>
+                            <span class="font-semibold text-gray-800">${Math.round(generacionAnual).toLocaleString('es-CL')} kWh</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Tamaño del sistema estimado:</span>
+                            <span class="font-semibold text-gray-800">${tamanoSistema.toFixed(2)} kWp</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function mostrarError(mensaje) {
+            loader.classList.add('hidden');
+            resultContent.classList.remove('hidden');
+            resultContent.innerHTML = `
+                <div class="result-box border-l-red-500 bg-red-50">
+                    <p class="font-semibold text-red-700">${mensaje}</p>
+                </div>
+            `;
+        }
+
+        // --- EVENT LISTENER ---
+        calcularBtn.addEventListener('click', calcularRetorno);
+
+    </script>
+</body>
+</html>
