@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculadora de Retorno de Inversión Solar - Chile</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -81,7 +82,7 @@
                 <label for="gastoMensual" class="block text-sm font-medium text-gray-700 mb-1">Tu gasto mensual promedio en electricidad (CLP)</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
-                    <input type="number" id="gastoMensual" class="input-field pl-7" placeholder="Ej: 65000" value="65000">
+                    <input type="text" id="gastoMensual" class="input-field pl-7 text-right" placeholder="Ej: 65.000" value="65.000">
                 </div>
             </div>
 
@@ -90,7 +91,16 @@
                 <label for="costoInstalacion" class="block text-sm font-medium text-gray-700 mb-1">Costo total de la instalación (CLP)</label>
                  <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
-                    <input type="number" id="costoInstalacion" class="input-field pl-7" placeholder="Ej: 3500000" value="3500000">
+                    <input type="text" id="costoInstalacion" class="input-field pl-7 text-right" placeholder="Ej: 3.500.000" value="3.500.000">
+                </div>
+            </div>
+
+            <!-- Input: Precio del kWh -->
+            <div>
+                <label for="precioKwh" class="block text-sm font-medium text-gray-700 mb-1">Precio actual de la energía (CLP por kWh)</label>
+                 <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
+                    <input type="number" id="precioKwh" class="input-field pl-7" value="200">
                 </div>
             </div>
 
@@ -122,7 +132,7 @@
         <div class="mt-8 text-xs text-gray-500 border-t pt-4">
             <h3 class="font-semibold text-sm text-gray-600 mb-2">Supuestos de la Simulación:</h3>
             <ul class="list-disc list-inside space-y-1">
-                <li>Precio promedio de la electricidad (Tarifa BT1): <strong class="font-medium text-gray-700">$185 CLP por kWh</strong>. Este valor puede variar.</li>
+                <li>El precio de la electricidad es editable. El valor por defecto es <strong class="font-medium text-gray-700">$200 CLP por kWh</strong>.</li>
                 <li>Factor de generación anual según zona (considera radiación y rendimiento promedio):
                     <ul class="list-['-_'] list-inside ml-4">
                         <li><strong>Norte:</strong> 2.200 kWh/kWp al año.</li>
@@ -131,76 +141,81 @@
                     </ul>
                 </li>
                 <li>El cálculo asume que toda la energía generada se autoconsume o se inyecta a la red bajo la Ley de Generación Distribuida (Net-Billing), compensando tu consumo.</li>
-                <li>No se consideran costos de mantención, degradación de los paneles a lo largo del tiempo ni posibles alzas en el precio de la luz (lo que podría acelerar el retorno).</li>
+                <li>No se consideran costos de mantención, degradación de los paneles a lo largo del tiempo ni futuras alzas en el precio de la luz (lo que podría acelerar el retorno).</li>
                 <li class="font-bold mt-2">Esta es una estimación. Para un cálculo exacto, consulta con una empresa instaladora certificada.</li>
             </ul>
         </div>
     </div>
 
     <script>
-        // --- CONSTANTES DE CONFIGURACIÓN ---
-        const PRECIO_KWH = 185; // Precio promedio por kWh en CLP
+        // --- CONSTANTES Y VARIABLES GLOBALES ---
         const FACTORES_GENERACION = {
             norte: 2200, // kWh generados por kWp instalado al año
             centro: 1750,
             sur: 1300
         };
         const COSTO_PROMEDIO_POR_KWP = 1200000; // Costo estimado por kWp instalado en CLP
+        let roiChart = null; // Variable para almacenar la instancia del gráfico
 
         // --- ELEMENTOS DEL DOM ---
         const gastoMensualInput = document.getElementById('gastoMensual');
         const costoInstalacionInput = document.getElementById('costoInstalacion');
+        const precioKwhInput = document.getElementById('precioKwh');
         const zonaSelect = document.getElementById('zona');
         const calcularBtn = document.getElementById('calcularBtn');
         const resultadoDiv = document.getElementById('resultado');
         const loader = document.getElementById('loader');
         const resultContent = document.getElementById('result-content');
 
+        // --- FUNCIONES DE FORMATO ---
+        function formatCLP(value) {
+            if (!value) return '';
+            let numStr = value.toString().replace(/[^0-9]/g, '');
+            if (numStr === '') return '';
+            return new Intl.NumberFormat('es-CL').format(numStr);
+        }
+
+        function unformatCLP(value) {
+            if (!value) return 0;
+            return parseFloat(value.toString().replace(/\./g, ''));
+        }
+
         // --- FUNCIÓN PRINCIPAL DE CÁLCULO ---
         function calcularRetorno() {
-            // 1. Mostrar loader y ocultar resultado anterior
             resultadoDiv.classList.remove('hidden');
             resultContent.classList.add('hidden');
             loader.classList.remove('hidden');
             
-            // Simular una pequeña demora para la animación del loader
             setTimeout(() => {
-                // 2. Obtener y validar los datos de entrada
-                const gastoMensual = parseFloat(gastoMensualInput.value);
-                const costoInstalacion = parseFloat(costoInstalacionInput.value);
+                const costoInstalacion = unformatCLP(costoInstalacionInput.value);
+                const precioKwh = parseFloat(precioKwhInput.value);
                 const zona = zonaSelect.value;
 
-                if (isNaN(gastoMensual) || gastoMensual <= 0 || isNaN(costoInstalacion) || costoInstalacion <= 0) {
-                    mostrarError("Por favor, ingresa valores válidos y positivos en todos los campos.");
+                if (isNaN(costoInstalacion) || costoInstalacion <= 0 || isNaN(precioKwh) || precioKwh <= 0) {
+                    mostrarError("Por favor, ingresa valores válidos y positivos en los campos de costo y precio.");
                     return;
                 }
 
-                // 3. Realizar los cálculos
-                // Estimar el tamaño del sistema en kWp basado en el costo de instalación
                 const tamanoSistemaKWp = costoInstalacion / COSTO_PROMEDIO_POR_KWP;
-
-                // Calcular la generación anual de energía
                 const factorGeneracion = FACTORES_GENERACION[zona];
                 const generacionAnualKWh = tamanoSistemaKWp * factorGeneracion;
+                const ahorroAnual = generacionAnualKWh * precioKwh;
+                
+                if (ahorroAnual <= 0) {
+                    mostrarError("Con los datos ingresados, no se genera ahorro. Revisa los valores.");
+                    return;
+                }
 
-                // Calcular el ahorro anual en CLP
-                const ahorroAnual = generacionAnualKWh * PRECIO_KWH;
-
-                // Calcular el período de retorno de la inversión (ROI) en años
                 const retornoEnAnosDecimal = costoInstalacion / ahorroAnual;
-
-                // Convertir el resultado a años y meses
                 const anos = Math.floor(retornoEnAnosDecimal);
                 const meses = Math.round((retornoEnAnosDecimal - anos) * 12);
                 
-                // 4. Mostrar el resultado
-                mostrarResultado(anos, meses, ahorroAnual, generacionAnualKWh, tamanoSistemaKWp);
-
-            }, 500); // 0.5 segundos de demora
+                mostrarResultado(anos, meses, ahorroAnual, generacionAnualKWh, tamanoSistemaKWp, costoInstalacion);
+            }, 500); 
         }
 
-        // --- FUNCIONES AUXILIARES PARA MOSTRAR RESULTADOS ---
-        function mostrarResultado(anos, meses, ahorroAnual, generacionAnual, tamanoSistema) {
+        // --- FUNCIONES DE VISUALIZACIÓN ---
+        function mostrarResultado(anos, meses, ahorroAnual, generacionAnual, tamanoSistema, costoInstalacion) {
             loader.classList.add('hidden');
             resultContent.classList.remove('hidden');
             
@@ -228,7 +243,12 @@
                         </div>
                     </div>
                 </div>
+                <div class="mt-6 bg-white p-4 rounded-lg shadow-inner">
+                    <canvas id="roiChartCanvas"></canvas>
+                </div>
             `;
+            
+            renderizarGrafico(ahorroAnual, costoInstalacion);
         }
 
         function mostrarError(mensaje) {
@@ -241,9 +261,96 @@
             `;
         }
 
-        // --- EVENT LISTENER ---
+        function renderizarGrafico(ahorroAnual, costoInstalacion) {
+            const proyeccionAnos = 20;
+            const labels = Array.from({length: proyeccionAnos + 1}, (_, i) => `Año ${i}`);
+            const data = [];
+            let balanceAcumulado = -costoInstalacion;
+            data.push(balanceAcumulado);
+
+            for (let i = 1; i <= proyeccionAnos; i++) {
+                balanceAcumulado += ahorroAnual;
+                data.push(balanceAcumulado);
+            }
+
+            const ctx = document.getElementById('roiChartCanvas').getContext('2d');
+            
+            if (roiChart) {
+                roiChart.destroy();
+            }
+
+            roiChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Balance Acumulado (CLP)',
+                        data: data,
+                        fill: true,
+                        tension: 0.2,
+                        segment: {
+                            borderColor: ctx => ctx.p0.parsed.y < 0 ? 'rgb(239, 68, 68)' : 'rgb(34, 197, 94)',
+                            backgroundColor: ctx => ctx.p0.parsed.y < 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Proyección de Ahorro y Ganancia a 20 Años',
+                            font: { size: 16 },
+                            padding: { top: 10, bottom: 20 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 3,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- EVENT LISTENERS ---
         calcularBtn.addEventListener('click', calcularRetorno);
 
+        [gastoMensualInput, costoInstalacionInput].forEach(input => {
+            input.addEventListener('input', (e) => {
+                const { value, selectionStart } = e.target;
+                const originalLength = value.length;
+                const formattedValue = formatCLP(value);
+                e.target.value = formattedValue;
+                const newLength = formattedValue.length;
+                if (selectionStart !== null) {
+                    e.target.setSelectionRange(selectionStart + (newLength - originalLength), selectionStart + (newLength - originalLength));
+                }
+            });
+        });
     </script>
 </body>
 </html>
